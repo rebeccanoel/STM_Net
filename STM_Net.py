@@ -1,11 +1,12 @@
 '''
-Le Net Adapted
+STM Net
 
 To-Do: find out why num_steps = 5?
 assert num_steps = 1 to show only a single image and no blanks, this should have same accuracy as Le Net
 try increasing num_steps to begin to evaluate memory
 separate out accuracy function?
 '''
+
 
 #IMPORT LIBRARY
 import pandas as pd
@@ -24,9 +25,11 @@ from reformat_original import reformat
 #from reform_exp_one import reformat, reform_test
 from helper_functions import weightBuilder, biasesBuilder, conv2d, maxPool_2x2, rnn_cell
 #from gen_timestep_array_fxn import gen_timestep_array
-from time_array_exp1 import gen_timestep_array
+from time_array_exp2 import gen_timestep_array
 from loss_calc_fxn import loss_calc
 
+
+def STM_Net(experiment_ID):
 #IMPORT DATA
 file_path ="./input/train.csv"
 data   = pd.read_csv(file_path)
@@ -151,12 +154,12 @@ with graph.as_default():
     tf_train_labels    = tf.placeholder(tf.float32,shape=(con.batch_size,con.num_labels,con.num_steps))
     #validation data 
     tf_valid_dataset, tf_valid_labels = gen_timestep_array(valid_dataset, valid_labels, 
-        con.num_steps, con.temporal_order)
+        con.num_steps, experiment_ID)
     tf_valid_dataset = tf.constant(tf_valid_dataset)
     tf_valid_labels = tf.constant(tf_valid_labels)
     #test data
     #CHANGED TO A PLACEHOLDER FOR EXPERIMENT 
-    tf_test_dataset, tf_test_labels = gen_timestep_array(test_dataset, test_labels, con.num_steps, con.temporal_order)
+    tf_test_dataset, tf_test_labels = gen_timestep_array(test_dataset, test_labels, con.num_steps, experiment_ID)
     tf_test_dataset = tf.constant(tf_test_dataset)
     tf_test_labels = tf.constant(tf_test_labels)
     #tf_test_dataset    = tf.placeholder(tf.float32,shape=(con.batch_size,con.image_size,con.image_size,con.num_channels,con.num_steps))
@@ -275,10 +278,9 @@ with tf.Session(graph=graph) as session:
     
     now  = str(datetime.now()).replace(" ","_").replace(".","_").replace(":","_")
     print (now)
-    train_writer = tf.summary.FileWriter(os.path.join("./train_data", now),session.graph)
-    
-    print("!!! tf_train_labels shape: ", tf_train_labels.shape[0])
-    print("!!! train_labels shape: ", train_labels.shape[0])
+    #added con.exp_name as argument to join
+    train_writer = tf.summary.FileWriter(os.path.join("./train_data", now, con.exp_name),session.graph)
+
 
     print("Initialized")
     for epoch in range(num_epochs):
@@ -296,15 +298,11 @@ with tf.Session(graph=graph) as session:
             # Prepare a dictionary telling the session where to feed the minibatch.
             # The key of the dictionary is the placeholder node of the graph to be fed,
             # and the value is the numpy array to feed to it.
-            train_data_in, train_labels_in = gen_timestep_array(batch_data, batch_labels, con.num_steps, con.temporal_order)
+            train_data_in, train_labels_in = gen_timestep_array(batch_data, batch_labels, con.num_steps, experiment_ID)
             feed_dict = {tf_train_dataset : train_data_in,
                          tf_train_labels : train_labels_in,
                          keep_prob:0.5}
-            '''
-            feed_dict = {tf_train_dataset : gen_timestep_array(batch_data,con.num_steps, con.temporal_order),
-                         tf_train_labels : gen_timestep_array(batch_labels,con.num_steps, con.temporal_order),
-                         keep_prob:0.5}
-            '''
+           
             _, l, predictions,summary = session.run([optimizer, loss_list, train_prediction,merged], feed_dict=feed_dict)
 
             #append each summary 
@@ -337,7 +335,7 @@ with tf.Session(graph=graph) as session:
 #restore session
 with tf.Session(graph=graph) as session:
     #submission labels do not exist - using submission dataset to feed in in order for function to run - doesn't give any suseful information
-    tf_submission_data, tf_submission_labels = gen_timestep_array(submission_dataset, submission_dataset, con.num_steps, con.temporal_order)
+    tf_submission_data, tf_submission_labels = gen_timestep_array(submission_dataset, submission_dataset, con.num_steps, experiment_ID)
     saver = tf.train.import_meta_graph(checkpoint_file +'.meta')
     saver.restore(session, checkpoint_file)
     sub_precition = session.run([tf.argmax(submission_prediction, 1)],
