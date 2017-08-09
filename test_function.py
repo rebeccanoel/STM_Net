@@ -2,7 +2,7 @@
 test function for purpose of running open in mind
 '''
 import sys
-exp_number = sys.argv[1]
+exp_number = int(sys.argv[1])
 
 experiments = [1,2,3,4,5]
 print("hello")
